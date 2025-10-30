@@ -1,40 +1,22 @@
-﻿using Newtonsoft.Json;
-
-namespace WbApiData
+﻿namespace WbApiData
 {
-    public class Card
+    public class Card(int articule, string sellerArticule,
+        string photoUrl,
+        int length, int width, int height, double weight,
+        string techSize, string barcode)
     {
-        [JsonProperty("nmID")] public int Articule { get; init; }
+        public int Articule { get; init; } = articule;
+        public string SellerArticule { get; init; } = sellerArticule;
 
-        [JsonProperty("vendorCode")] public required string SellerArticule { get; init; }
+        public string PhotoUrl { get; init; } = photoUrl;
 
-        [JsonProperty("photos")] public List<Photo> Photos { get; init; } = [];
+        public int Length { get; init; } = length;
+        public int Width { get; init; } = width;
+        public int Height { get; init; } = height;
 
-        [JsonProperty("dimensions")] public Dimensions Dimensions { get; init; } = new();
+        public double Weight { get; init; } = weight;
 
-        [JsonProperty("sizes")] public List<Size> Sizes { get; init; } = [];
-    }
-
-    public class Photo
-    {
-        [JsonProperty("big")] public string Big { get; init; } = string.Empty;
-    }
-
-    public class Dimensions
-    {
-        [JsonProperty("length")] public int Length { get; init; }
-
-        [JsonProperty("width")] public int Width { get; init; }
-
-        [JsonProperty("height")] public int Height { get; init; }
-
-        [JsonProperty("weightBrutto")] public double WeightBrutto { get; init; }
-    }
-
-    public class Size
-    {
-        [JsonProperty("techSize")] public string TechSize { get; init; } = string.Empty;
-
-        [JsonProperty("skus")] public List<string> Skus { get; init; } = [];
+        public string TechSize { get; init; } = techSize;
+        public string Barcode { get; init; } = barcode;
     }
 }

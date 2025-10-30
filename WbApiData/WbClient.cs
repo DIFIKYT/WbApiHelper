@@ -60,58 +60,77 @@ namespace WbApiData
 
         public async Task<Dictionary<int, Card>> GetCards()
         {
-            Dictionary<int, Card> articuleToGoodInfo = [];
-            bool hasMore = true;
-            string? updatedAt = null;
-            int nmID = 0;
-
-            while (hasMore)
+            try
             {
-                var requestBody = new
+                Dictionary<int, Card> articuleToGoodInfo = [];
+                bool hasMore = true;
+                string? updatedAt = null;
+                int nmID = 0;
+
+                while (hasMore)
                 {
-                    settings = new
+                    var requestBody = new
                     {
-                        cursor = new
+                        settings = new
                         {
-                            limit = 100,
-                            updatedAt,
-                            nmID
-                        },
-                        filter = new
-                        {
-                            withPhoto = -1
+                            cursor = new
+                            {
+                                limit = 100,
+                                updatedAt,
+                                nmID
+                            },
+                            filter = new
+                            {
+                                withPhoto = -1
+                            }
                         }
+                    };
+
+                    string jsonContent = System.Text.Json.JsonSerializer.Serialize(requestBody);
+                    HttpContent content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    HttpResponseMessage response = await _client.PostAsync(CardsInfoUrl, content);
+
+                    if (response.IsSuccessStatusCode == false)
+                    {
+                        Console.WriteLine("Ошибка запроса: " + await response.Content.ReadAsStringAsync());
+                        break;
                     }
-                };
 
-                string jsonContent = System.Text.Json.JsonSerializer.Serialize(requestBody);
-                HttpContent content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-                HttpResponseMessage response = await _client.PostAsync(CardsInfoUrl, content);
+                    string result = await response.Content.ReadAsStringAsync();
+                    JsonDocument data = JsonDocument.Parse(result);
+                    JsonElement cards = data.RootElement.GetProperty("cards");
+                    JsonElement cursor = data.RootElement.GetProperty("cursor");
 
-                if (response.IsSuccessStatusCode == false)
-                {
-                    Console.WriteLine("Ошибка запроса: " + await response.Content.ReadAsStringAsync());
-                    break;
+                    foreach (JsonElement card in cards.EnumerateArray())
+                    {
+                        int articule = card.GetProperty("nmID").GetInt32();
+
+                        articuleToGoodInfo[articule] = new Card(
+                            articule,
+                            card.GetProperty("vendorCode").GetString()!,
+                            card.TryGetProperty("photos", out JsonElement photos) ? photos.EnumerateArray().First().TryGetProperty("big", out JsonElement bigPhoto) ? bigPhoto.GetString()! : "No photo" : "No photo",
+                            card.GetProperty("dimensions").GetProperty("length").GetInt32(),
+                            card.GetProperty("dimensions").GetProperty("width").GetInt32(),
+                            card.GetProperty("dimensions").GetProperty("height").GetInt32(),
+                            card.GetProperty("dimensions").GetProperty("weightBrutto").GetDouble(),
+                            card.GetProperty("sizes").EnumerateArray().First().GetProperty("techSize").GetString()!,
+                            card.GetProperty("sizes").EnumerateArray().First().GetProperty("skus").EnumerateArray().First().GetString()!);
+                    }
+
+                    updatedAt = cursor.GetProperty("updatedAt").GetString();
+                    nmID = cursor.GetProperty("nmID").GetInt32();
+                    hasMore = cursor.GetProperty("total").GetInt32() >= 100;
+
+                    await Task.Delay(1000);
                 }
 
-                string result = await response.Content.ReadAsStringAsync();
-                var data = JsonConvert.DeserializeObject<CardsResponse>(result);
-
-                if (data is null) break;
-
-                foreach (var card in data.Cards)
-                {
-                    articuleToGoodInfo[card.Articule] = card;
-                }
-
-                hasMore = data.Cursor.Total >= 100;
-                updatedAt = data.Cursor.UpdatedAt;
-                nmID = data.Cursor.NmID;
-
-                await Task.Delay(1000);
+                return articuleToGoodInfo;
             }
-
-            return articuleToGoodInfo;
+            catch (Exception exception)
+            {
+                Console.WriteLine($"Error in GetCards: - \n{exception}");
+                return [];
+            }
         }
 
         public async Task<Dictionary<int, Stock>> GetStocks()
@@ -170,14 +189,10 @@ namespace WbApiData
                 {
                     int articule = sale.Articule;
 
-                    if (articuleToSale.TryGetValue(articule, out Sale? value))
-                    {
-                        value.IncreaseQuantity();
-                    }
+                    if (articuleToSale.TryGetValue(articule, out Sale? existingSale))
+                        existingSale.MergeWith(sale);
                     else
-                    {
                         articuleToSale[articule] = sale;
-                    }
                 }
             }
 
@@ -235,13 +250,14 @@ namespace WbApiData
             return articuleToStatistic;
         }
 
-        public async Task<Dictionary<int, PriceAndDiscount>> GetPriceAndDiscount()
+        public async Task<Dictionary<int, Price>> GetPrice()
         {
-            Dictionary<int, PriceAndDiscount> articuleToPriceAndDiscount = [];
+            Dictionary<int, Price> articuleToPriceAndDiscount = [];
             int limit = 1000;
             int offset = 0;
+            JsonElement.ArrayEnumerator listGoods = [];
 
-            while (true)
+            do
             {
                 string currentResponseUrl = $"{PriceAndDiscountUrl}?limit={limit}&offset={offset}";
                 HttpResponseMessage response = await _client.GetAsync(currentResponseUrl);
@@ -251,23 +267,21 @@ namespace WbApiData
                     string result = await response.Content.ReadAsStringAsync();
                     JsonDocument document = JsonDocument.Parse(result);
                     JsonElement data = document.RootElement.GetProperty("data");
-                    JsonElement listGoods = data.GetProperty("listGoods");
+                    listGoods = data.GetProperty("listGoods").EnumerateArray();
 
-                    List<PriceAndDiscount> pricesAndDiscounts = JsonConvert.DeserializeObject<List<PriceAndDiscount>>(listGoods.ToString())!;
-
-                    if (pricesAndDiscounts.Count == 0)
+                    foreach (JsonElement good in listGoods)
                     {
-                        break;
-                    }
+                        int articule = good.GetProperty("nmID").GetInt32();
 
-                    foreach (PriceAndDiscount priceAndDiscount in pricesAndDiscounts)
-                    {
-                        articuleToPriceAndDiscount[priceAndDiscount.Articule] = priceAndDiscount;
+                        articuleToPriceAndDiscount[articule] = new Price(articule,
+                            good.GetProperty("vendorCode").GetString()!,
+                            good.GetProperty("sizes").EnumerateArray().First().GetProperty("price").GetInt32(),
+                            good.GetProperty("sizes").EnumerateArray().First().GetProperty("discountedPrice").GetDouble());
                     }
 
                     offset += limit;
                 }
-            }
+            } while (listGoods.Any());
 
             return articuleToPriceAndDiscount;
         }
