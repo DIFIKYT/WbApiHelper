@@ -7,7 +7,7 @@ namespace WbApiData
         [JsonProperty("nmId")] public int Articule { get; init; }
         [JsonProperty("vendorCode")] public required string SellerArticule { get; init; }
         [JsonProperty("barcode")] public required string Barcode { get; init; }
-        [JsonProperty("techSize")] public int TechSize { get; init; }
+        [JsonProperty("techSize")] public required string TechSize { get; init; }
         [JsonProperty("volume")] public double Volume { get; init; }
         [JsonProperty("wareHouses")] public List<Warehouse> Warehouses { get; init; } = [];
     }

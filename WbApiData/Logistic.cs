@@ -5,9 +5,9 @@ namespace WbApiData
 {
     public class Logistic
     {
-        [JsonProperty("boxDeliveryBase")] public required string DeliveryFirstLiter { get; init; }
-        [JsonProperty("boxDeliveryMarketplaceBase")] public required string DeliveryAdditionalLiter { get; init; }
-        [JsonProperty("boxDeliveryCoefExpr")] public required string DeliveryCoefExpr { get; init; }
+        [JsonProperty("boxDeliveryBase")] public required string LogisticFirstLiter { get; init; }
+        [JsonProperty("boxDeliveryMarketplaceBase")] public required string LogisticAdditionalLiter { get; init; }
+        [JsonProperty("boxDeliveryCoefExpr")] public required string LogisticCoefExpr { get; init; }
 
         [JsonProperty("boxStorageBase")] public required string StorageFirstLiter { get; init; }
         [JsonProperty("boxStorageLiter")] public required string StorageAdditionalLiter { get; init; }
